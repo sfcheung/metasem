@@ -504,16 +504,57 @@ summary.meta <- function(object, homoStat=TRUE, robust=FALSE, ...) {
         R2.values <- NA
       }
     }
-          
+    if (!is.null(object$original.names)) {
+        onames <- object$original.names
+      } else {
+        onames <- NA  
+      }
     out <- list(call=object$call, Q.stat=Q.stat, intervals.type=intervals.type,
                 I2=object$I2, I2.values=I2.values, R2=object$R2, R2.values=R2.values, no.studies=my.mx$numObs,
                 obsStat=my.mx$observedStatistics, estPara=my.mx$estimatedParameters,
                 df=my.mx$degreesOfFreedom, Minus2LL=my.mx$Minus2LogLikelihood,
                 coefficients=coefficients, Mx.status1=object$mx.fit@output$status[[1]],
-                robust=robust)
+                robust=robust,
+                original.names=onames)
     class(out) <- "summary.meta"
     out
 }
+
+corr_names <- function(vnames, sep = "_", diagonal = FALSE, col.first = TRUE) {
+    k <- length(vnames)
+    d <- ifelse(diagonal, 1, 0)
+    out <- sapply(seq_len(k - 1 + d),
+                  function(x) {
+                      if (col.first) {
+                          paste0(vnames[x], sep, vnames[(x + 1 - d):(k)])
+                        } else {
+                          paste0(vnames[(x + 1 - d):(k)], sep, vnames[x])
+                        }
+                    })
+    unlist(out)
+  }
+
+to_onames <- function(onames, coefnames, tsep = "@") {
+
+    onamesi <- corr_names(onames, sep = "_", diagonal = FALSE, col.first = FALSE)
+    onamest <- corr_names(onamesi, sep = tsep, diagonal = TRUE, col.first = FALSE)
+    tnames <- paste0("Tau2_", corr_names(1:6, sep = "_", diagonal = TRUE, col.first = FALSE))
+    inames <- paste0("Intercept", 1:6)
+
+    newnames <- coefnames
+
+    i <- match(newnames, inames)
+    j <- which(!is.na(i))
+    i <- i[!is.na(i)]
+    newnames[j] <- onamesi[i]
+
+    i <- match(newnames, tnames)
+    j <- which(!is.na(i))
+    i <- i[!is.na(i)]
+    newnames[j] <- onamest[i]
+
+    newnames
+  }
 
 ## Magee, L. (1990). R2 Measures Based on Wald and Likelihood Ratio Joint Significance Tests. The American Statistician, 44(3), 250-253. doi:10.2307/2685352
 ## Nagelkerke, N. J. D. (1991). A note on a general definition of the coefficient of determination. Biometrika, 78(3), 691-692. doi:10.2307/2337038
@@ -522,9 +563,21 @@ summary.meta <- function(object, homoStat=TRUE, robust=FALSE, ...) {
 ## Minus2LLbase, Minus2LLmodel, (1 - exp((Minus2LLmodel-Minus2LLbase)/no.studies))
 ## "-2LL (no predictor)", "-2LL (with predictors)", "R2 (pseudo)"
 
-print.summary.meta <- function(x, ...) {
+print.summary.meta <- function(x, use.original.names = FALSE, ...) {
     if (!is.element("summary.meta", class(x)))
     stop("\"x\" must be an object of class \"summary.meta\".")
+
+    if (use.original.names && !is.na(x$original.names)) {
+        rownames(x$coefficients) <- to_onames(x$original.names,
+                                              rownames(x$coefficients))
+        tmp0 <- gsub(": I2 (Q statistic)", "",
+                     rownames(x$I2.values),
+                     fixed = TRUE)        
+        tmp <- to_onames(x$original.names,
+                         tmp0)
+        tmp <- gsub("\\s", " ", format(tmp, width = max(nchar(tmp))))
+        rownames(x$I2.values) <- paste0(tmp, ": I2 (Q statistic)")
+      }
 
     ## cat("Call:\n")
     ## cat(deparse(x$call))
