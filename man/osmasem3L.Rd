@@ -1,34 +1,42 @@
-\name{osmasem}
-\alias{osmasem}
-\title{One-stage meta-analytic structural equation modeling
+\name{osmasem3L}
+\alias{osmasem3L}
+\title{Three-level one-stage meta-analytic structural equation modeling
 }
-\description{It fits MASEM with the one-stage MASEM (OSMASEM) approach.  
+\description{It fits MASEM with the one-stage MASEM with a three-level (OSMASEM3L) approach.  
 }
 \usage{
-osmasem(model.name="osmasem", RAM=NULL, Mmatrix=NULL,
-        Tmatrix=NULL, Jmatrix=NULL, Ax=NULL, Sx=NULL,
-        A.lbound=NULL, A.ubound=NULL,
-        RE.type=c("Diag", "Symm"), data,
-        subset.variables=NULL, subset.rows=NULL, 
-        intervals.type = c("z", "LB"),
-        mxModel.Args=NULL, mxRun.Args=NULL,
-        suppressWarnings=TRUE, silent=TRUE, run=TRUE, ...) 
+osmasem3L(model.name="osmasem3L", RAM=NULL, cluster=NULL,
+          RE.typeB=c("Diag", "Symm"), RE.typeW=c("Diag", "Symm"),
+          data, Mmatrix=NULL, TmatrixB=NULL, TmatrixW=NULL,
+          Ax=NULL, Sx=NULL, A.lbound=NULL, A.ubound=NULL,
+          subset.variables=NULL, subset.rows=NULL, 
+          intervals.type = c("z", "LB"),
+          mxModel.Args=NULL, mxRun.Args=NULL,
+          suppressWarnings=TRUE, silent=TRUE, run=TRUE, ...) 
 }
 \arguments{
 \item{model.name}{A string for the model name in \code{\link[OpenMx]{mxModel}}. 
   }
 \item{RAM}{A RAM object including a list of matrices of the model
   returned from \code{\link[metaSEM]{lavaan2RAM}}. If it is given,
-  \code{Mmatrix} and \code{Tmatrix} arguments will be ignored. 
-}  
+  \code{Mmatrix}, \code{TmatrixB} and \code{TmatrixW} arguments will be ignored. 
+}
+\item{cluster}{A vector of string or number indicating the clusters.
+}
+\item{RE.typeB}{Type of the random effects of the between structure when
+  \code{RAM} is provided.}
+\item{RE.typeW}{Type of the random effects of the within structure when
+  \code{RAM} is provided.}
+\item{data}{A list of data created by the \code{Cor2DataFrame}.}
 \item{Mmatrix}{A list of matrices of the model implied correlation
   matrix created by the \code{create.vechsR}. It is only required when
   \code{RAM} is null.}
-\item{Tmatrix}{A list of matrices of the heterogeneity
-  variance-covariance matrix created by the \code{create.Tau2}. It is only required when \code{RAM} is null.}
-\item{Jmatrix}{The Jacobian matrix of the mean structure in
-  mxMatrix. The covariance structure is Jmatrix \%&\% Tau2 + Vi. If it is
-not givin, an identity matrix will be used. }
+\item{TmatrixB}{A list of matrices of the between-level heterogeneity
+  variance-covariance matrix created by the \code{create.Tau2}. It is
+  only required when \code{RAM} is null.}
+\item{TmatrixW}{A list of matrices of the within-level heterogeneity
+  variance-covariance matrix created by the \code{create.Tau2}. It is
+  only required when \code{RAM} is null.}
 \item{Ax}{A Amatrix of a list of Amatrix with definition variables as
   the moderators of the Amatrix. It is used to create the \code{Mmatrix}.}
 \item{Sx}{A Smatrix of a list of Smatrix with definition variables as
@@ -38,8 +46,6 @@ not givin, an identity matrix will be used. }
   given, the lbound matrix will be filled with this scalar.}
 \item{A.ubound}{A matrix of upper bound of the Amatrix. If a scalar is
   given, the ubound matrix will be filled with this scalar.}
-\item{RE.type}{Type of the random effects.}
-\item{data}{A list of data created by the \code{Cor2DataFrame}.}
 \item{subset.variables}{A character vector of the observed variables selected for
   the analysis.}
 \item{subset.rows}{A logical vector of the same length as the number of rows in the data to select which rows are used in the analysis.}  
@@ -63,6 +69,8 @@ not givin, an identity matrix will be used. }
 }
 
 \references{
+  Cheung, M. W.-L. (2014). Modeling dependent effect sizes with three-level meta-analyses: A structural equation modeling approach. \emph{Psychological Methods}, \bold{19}, 211-229.
+
   Jak, S., & Cheung, M. W.-L. (2020). Meta-analytic structural equation
 modeling with moderating effects on SEM parameters. \emph{Psychological
   Methods}, \bold{25} (4), 430-455. https://doi.org/10.1037/met0000245

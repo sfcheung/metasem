@@ -41,7 +41,8 @@
 ## A1: 1st moderator
 ## Amatrix = A0 + A1*Ax[[1]] + A1*Ax[[2]]
 ## Smatrix = S0 + S1*Sx[[1]] + S2*Sx[[2]]
-create.vechsR <- function(A0, S0, F0=NULL, Ax=NULL, Sx=NULL) {
+create.vechsR <- function(A0, S0, F0=NULL, Ax=NULL, Sx=NULL,
+                          A.lbound=NULL, A.ubound=NULL) {
 
     if (is.matrix(A0)) {
         A0 <- as.mxMatrix(A0, name="A0")
@@ -248,13 +249,51 @@ create.vechsR <- function(A0, S0, F0=NULL, Ax=NULL, Sx=NULL) {
 
     ## Add names of the elements in the list
     names(out) <- sapply(out, function(x) x$name)
+
+    ## Add lbound and ubound to A0
+    if (!is.null(A.lbound)) {
+        if (is.matrix(A.lbound)) {
+            if (dim(A.lbound)==dim(out$A0$values)) {
+                out$A0$lbound <- A.lbound
+            } else {
+                stop("The dimensions of 'A.lbound' do not match those in 'A0'.\n")
+            }
+        } else {  # lbound is not matrix
+            out$A0$lbound  <- matrix(A.lbound, nrow=nrow(out$A0$values),
+                                     ncol=ncol(out$A0$values),
+                                     dimnames=dimnames(out$A0$values))
+        }
+    }
+
+    if (!is.null(A.ubound)) {
+        if (is.matrix(A.ubound)) {
+            if (dim(A.ubound)==dim(out$A0$values)) {
+                out$A0$ubound <- A.ubound
+            } else {
+                stop("The dimensions of 'A.ubound' do not match those in 'A0'.\n")
+            }
+        } else {  # ubound is not matrix
+            out$A0$ubound  <- matrix(A.ubound, nrow=nrow(out$A0$values),
+                                     ncol=ncol(out$A0$values),
+                                     dimnames=dimnames(out$A0$values))
+        } 
+    }      
+                
     out
 }
 
 create.Tau2 <- function(RAM, no.var, Tau1.labels=seq(no.var),
                         RE.type=c("Diag", "Symm", "Zero", "User"),
+                        level=c("single", "between", "within"),
                         RE.User=NULL, Transform=c("expLog", "sqSD"),
                         RE.startvalues=0.05) {
+
+    level <- match.arg(level)
+    switch(level,
+           single = level_suffix <- "",
+           between= level_suffix <- "B",
+           within = level_suffix <- "W")
+
     if (!missing(RAM)) {
         p <- sum(RAM$F)
         ## no. of correlation coefficients
@@ -265,6 +304,7 @@ create.Tau2 <- function(RAM, no.var, Tau1.labels=seq(no.var),
     if (no.var<1) stop("'no.var' must be at least 1.\n")
 
     if (length(Tau1.labels) != no.var) stop("Length of \"Tau1.labels\" is different from \"no.var\".\n")
+    Tau1.labels <- paste0(Tau1.labels, level_suffix)
     
     RE.type <- match.arg(RE.type)
     Transform <- match.arg(Transform)
@@ -296,18 +336,18 @@ create.Tau2 <- function(RAM, no.var, Tau1.labels=seq(no.var),
                vecTau1 <- create.mxMatrix(paste0(RE.startvalues, "*Tau1_", Tau1.labels),
                                           ncol=1, nrow=no.var, name="vecTau1")
                Cor <- create.mxMatrix(vechs(outer(seq(no.var), seq(no.var),
-                                            function(x,y) paste0("0*Cor_", x, "_", y))),
+                                            function(x,y) paste0("0*Cor_", x, "_", y, level_suffix))),
                                       type="Stand", ncol=no.var, nrow=no.var,
-                                      lbound=-0.99, ubound=0.99, name="Cor")},
+                                      lbound=-0.99, ubound=0.99, name=paste0("Cor", level_suffix))},
            Diag = {
                vecTau1 <- create.mxMatrix(paste0(RE.startvalues, "*Tau1_", Tau1.labels),
                                           ncol=1, nrow=no.var, name="vecTau1")
                ## Uncorrelated
-               Cor <- as.mxMatrix(diag(no.var), name="Cor")},
+               Cor <- as.mxMatrix(diag(no.var), name=paste0("Cor", level_suffix))},
            Zero = {
                vecTau1 <- create.mxMatrix(RE.startvalues, type="Full", ncol=1,
                                           nrow=no.var, name="vecTau1")
-               Cor <- as.mxMatrix(diag(no.var), name="Cor")},
+               Cor <- as.mxMatrix(diag(no.var), name=paste0("Cor", level_suffix))},
            User = { if (is.null(RE.User)) stop("'RE.User', the ", no.var, " by ", no.var,
                                                " symmetric matrix of TRUE or FALSE on the variance componment, must be specified.\n")
                                                ## Check the symmetry of RE.User
@@ -329,18 +369,23 @@ create.Tau2 <- function(RAM, no.var, Tau1.labels=seq(no.var),
                       sqSD =   vecTau1[diag(RE.User)==FALSE] <- sqrt(0))
                vecTau1 <- create.mxMatrix(vecTau1, ncol=1, nrow=no.var, name="vecTau1")
                Cor <- outer(seq(no.var), seq(no.var),
-                            function(x,y) paste0("0*Cor_", x, "_", y))
+                            function(x,y) paste0("0*Cor_", x, "_", y, level_suffix))
                Cor[RE.User==FALSE] <- 0
                Cor <- create.mxMatrix(vechs(Cor), type="Stand", ncol=no.var, nrow=no.var,
-                                      lbound=-0.99, ubound=0.99, name="Cor")}
+                                      lbound=-0.99, ubound=0.99, name=paste0("Cor", level_suffix))}
                )
 
     switch(Transform,
-           expLog = Tau2 <- mxAlgebra( vec2diag(exp(vecTau1)) %&% Cor, name="Tau2" ),
-           sqSD = Tau2 <- mxAlgebra( vec2diag(vecTau1 %^% 2) %&% Cor, name="Tau2" ))
+           expLog = Tau2 <- eval(parse(text=paste0("mxAlgebra( vec2diag(sqrt(exp(vecTau1))) %&% ",
+                                                   "Cor", level_suffix,
+                                                   ", name='Tau2", level_suffix, "')"))) ,
+           sqSD = Tau2 <- eval(parse(text=paste0("mxAlgebra( vec2diag(vecTau1) %&% ",
+                                                   "Cor", level_suffix,
+                                                   ", name='Tau2", level_suffix, "')"))))
 
     ## Vectorized version of Tau2
-    vechTau2 <- mxAlgebra(vech(Tau2), name="vechTau2")
+    vechTau2 <- eval(parse(text=paste0("mxAlgebra(vech(Tau2", level_suffix,
+                                       "), name='vechTau2", level_suffix, "')")))
     
     out <- list(Tau2, vecTau1, Cor, vechTau2)
 
@@ -374,6 +419,7 @@ create.V <- function(x, type=c("Symm", "Diag", "Full"), as.mxMatrix=TRUE) {
     
 osmasem <- function(model.name="osmasem", RAM=NULL, Mmatrix=NULL,
                     Tmatrix=NULL, Jmatrix=NULL, Ax=NULL, Sx=NULL,
+                    A.lbound=NULL, A.ubound=NULL,
                     RE.type=c("Diag", "Symm"), data,
                     subset.variables=NULL, subset.rows=NULL, 
                     intervals.type = c("z", "LB"),
@@ -408,7 +454,8 @@ osmasem <- function(model.name="osmasem", RAM=NULL, Mmatrix=NULL,
 
     ## If RAM is provided, create the matrices based on it.
     if (!is.null(RAM)) {
-        Mmatrix <- create.vechsR(A0=RAM$A, S0=RAM$S, F0=RAM$F, Ax=Ax, Sx=Sx)
+        Mmatrix <- create.vechsR(A0=RAM$A, S0=RAM$S, F0=RAM$F, Ax=Ax, Sx=Sx,
+                                 A.lbound=A.lbound, A.ubound=A.ubound)
         Tmatrix <- create.Tau2(RAM=RAM, RE.type=RE.type, Transform="expLog")
     }
 
@@ -542,8 +589,8 @@ vcov.osmasem <- function(object, select=c("fixed", "all", "random"),
 }
 
 VarCorr <- function(x, ...) {
-    if (!(class(x) %in% c("meta", "osmasem")))
-        stop("\"x\" must be an object of either class \"meta\" or \"osmasem\".")
+    if (all(!is.element(c("meta", "osmasem", "osmasem3L"), class(x))))
+        stop("\"x\" must be an object of either class \"meta\", \"osmasem\" or \"osmasem3L\".")
 
     switch(class(x)[1],
            meta = out <- eval(parse(text="mxEval(Tau, x$mx.fit)")),
@@ -558,6 +605,21 @@ VarCorr <- function(x, ...) {
                ## Replace Tau1 with Tau2
                names.tau2 <- gsub("Tau1", "Tau2", c(x$Tmatrix$vecTau1$labels))
                dimnames(out) <- list(names.tau2, names.tau2)},
+           osmasem3L = {
+               ## Tau2 (within)
+               Tau2W <- eval(parse(text="mxEval(Tau2W, x$mx.fit)"))
+               ## Labels ended with "W"
+               names.tau2W <- gsub("W$", "", c(x$TmatrixW$vecTau1$labels))
+               names.tau2W <- gsub("Tau1", "Tau2", names.tau2W)               
+               dimnames(Tau2W) <- list(names.tau2W, names.tau2W)
+
+               ## Tau2 (between)
+               Tau2B <- eval(parse(text="mxEval(B.Tau2B, x$mx.fit)"))
+               ## Labels ended with "B" 
+               names.tau2B <- gsub("B$", "", c(x$TmatrixB$vecTau1$labels))
+               names.tau2B <- gsub("Tau1", "Tau2", names.tau2B)
+               dimnames(Tau2B) <- list(names.tau2B, names.tau2B)
+               out <- list(Tau2W=Tau2W, Tau2B=Tau2B)},
            stop("Invalid class:", class(x)))
 
     out    
@@ -574,22 +636,32 @@ VarCorr <- function(x, ...) {
         if (!is.element("osmasem", class(osmasem.obj)))
             stop("\"osmasem.obj\" must be an object of class \"osmasem\".")
 
-        if (missing(Tmatrix)) Tmatrix <- osmasem.obj$Tmatrix
-        Vmatrix <- osmasem.obj$Vmatrix
+        if (missing(Tmatrix)) {
+            Tmatrix <- osmasem.obj$Tmatrix
+        }                
         ## No. of variables in the model
         p <- nrow(Tmatrix$Cor$values)
         data <- osmasem.obj$data
+        ylabels <- osmasem.obj$labels$ylabels
+        Vmatrix <- osmasem.obj$Vmatrix        
     } else {
+        ## FIXME: It does not work.
         ## If there is no osmasem.obj, create a new saturated/independence model from data.
-        p <- length(osmasem.obj$labels$ylabels)
+        ylabels <- data$ylabels
+        p <- length(ylabels)
         ## Create known sampling variance covariance matrix
-        Vmatrix <- create.V(osmasem.obj$labels$vlabels, type="Symm", as.mxMatrix=TRUE)
+        Vmatrix <- create.V(data$labels$vlabels, type="Symm", as.mxMatrix=TRUE)
     }    
 
     model <- match.arg(model)
 
     if (model=="Saturated") {
         ## Saturated model
+        st.values <- apply(data$data[, ylabels, drop=FALSE], 2,  mean, na.rm=TRUE)
+        Mmatrix <- mxMatrix(type="Full", free=TRUE, values=st.values,
+                            labels=paste0("Mu", seq_len(p)),
+                            nrow=1, ncol=p, dimnames=list(NULL, ylabels), name="Mu")
+        
         Mmatrix <- mxMatrix(type="Full", free=TRUE, labels=paste0("Mu", seq_len(p)),
                             nrow=1, ncol=p, name="Mu")
     } else {

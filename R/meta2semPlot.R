@@ -1,3 +1,4 @@
+# FIXME: ensure dimnames in Cov iputs?
 meta2semPlot <- function(object, manNames=NULL, latNames=NULL, labels=c("labels", "RAM"), ...) {
 
     if (!requireNamespace("semPlot", quietly=TRUE))    
@@ -118,8 +119,8 @@ plot.osmasem <- function(x, manNames=NULL, latNames=NULL, labels=c("labels", "RA
   if (!requireNamespace("semPlot", quietly=TRUE))    
     stop("\"semPlot\" package is required for this function.")
 
-  if (!is.element(class(x), "osmasem"))
-    stop("\"x\" must be an object of class \"osmasem\".")
+  if (!is.element(class(x), c("osmasem", "osmasem3L")))
+      stop("\"x\" must be an object of either class \"osmasem\" or \"osmasem3L\".")
 
   A <- x$mx.fit$Amatrix$result
   S <- x$mx.fit$Smatrix$result
@@ -176,4 +177,15 @@ plot.osmasem <- function(x, manNames=NULL, latNames=NULL, labels=c("labels", "RA
                                sizeMan=sizeMan, sizeLat=sizeLat,
                                edge.label.cex=edge.label.cex, color=color,
                                weighted=weighted, ...) )
+}
+
+plot.osmasem3L <- function(x, manNames=NULL, latNames=NULL, labels=c("labels", "RAM"),
+                           what="est", nCharNodes=0, nCharEdges=0,
+                           layout=c("tree", "circle", "spring", "tree2", "circle2"),
+                           sizeMan=8, sizeLat=8, edge.label.cex=1.3, color="white",
+                           weighted=FALSE, ...) {
+    plot.osmasem(x, manNames=manNames, latNames=latNames, labels=labels,
+                 what=what, nCharNodes=nCharNodes, nCharEdges=nCharEdges,
+                 layout=layout, sizeMan=sizeMan, sizeLat=sizeLat,
+                 edge.label.cex=edge.label.cex, color=color, weighted=weighted, ...)
 }

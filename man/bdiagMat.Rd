@@ -20,7 +20,7 @@ bdiagMat(x)
 %%  \item{comp2 }{Description of 'comp2'}
 %% ...
 }
-\references{It was based on a function posted by Scott Chasalow at \url{http://www.math.yorku.ca/Who/Faculty/Monette/pub/stmp/0827.html}.
+\references{It was based on a function posted by Scott Chasalow at http://www.math.yorku.ca/Who/Faculty/Monette/pub/stmp/0827.html.
 %% ~put references to the literature/web site here ~
 }
 \author{Mike W.-L. Cheung <mikewlcheung@nus.edu.sg>
@@ -32,7 +32,7 @@ bdiagMat(x)
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 }
 \examples{
-## Block diagonal matrix of numerics
+## Block diagonal matrix of numbers
 bdiagMat( list(matrix(1:4,nrow=2,ncol=2),
                matrix(5:6,nrow=1,ncol=2)) )
 #      [,1] [,2] [,3] [,4]

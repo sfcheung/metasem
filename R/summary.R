@@ -498,8 +498,8 @@ summary.meta <- function(object, homoStat=TRUE, robust=FALSE, ...) {
       if (object$R2) {
         R2.values <- .R2(object)
         ## Ensure R2 is within 0 and 1
-        R2.values <- ifelse(R2.values < 0, 0, R2.values)
-        R2.values <- ifelse(R2.values > 1, 1, R2.values)
+        R2.values["R2", ] <- ifelse(R2.values["R2", ] < 0, 0, R2.values["R2", ])
+        R2.values["R2", ] <- ifelse(R2.values["R2", ] > 1, 1, R2.values["R2", ])
       } else {
         R2.values <- NA
       }
@@ -1007,9 +1007,22 @@ coef.reml <- function(object, ...) {
 }
 
 anova.meta <- function(object, ..., all=FALSE) {
-  base <- lapply(list(object), function(x) x$mx.fit)
-  comparison <- lapply(list(...), function(x) x$mx.fit)
-  mxCompare(base=base, comparison=comparison, all=all)
+    ## Check if the numbers of studies are identical.
+    ## meta3 object
+    if (is.element("meta3", class(object))) {
+        n <- lapply(list(object, ...), function(x) summary(x$mx.fit)$observedStatistics)
+    } else {
+        ## meta object
+        n <- lapply(list(object, ...), function(x) summary(x$mx.fit)$numObs)
+    }
+  
+    if (length(unique(unlist(n))) != 1) {
+        warning("The numbers of studies appear to be different in these models. The comparisons are likely invalid.\n")
+    }
+    
+    base <- lapply(list(object), function(x) x$mx.fit)
+    comparison <- lapply(list(...), function(x) x$mx.fit)
+    mxCompare(base=base, comparison=comparison, all=all)
 }
 
 anova.wls <- function(object, ..., all=FALSE) {
@@ -1036,9 +1049,9 @@ summary.wls.cluster <- function(object, df.adjustment=0, ...) {
     lapply(object, summary.wls, df.adjustment=0, ...)
 }
 
-summary.meta3X <- function(object, allX=FALSE, robust=FALSE, ...) {
-    if (!is.element("meta3X", class(object)))
-      stop("\"object\" must be an object of class \"meta3X\".")
+summary.meta3LX <- function(object, allX=FALSE, robust=FALSE, ...) {
+    if (!is.element("meta3LX", class(object)))
+      stop("\"object\" must be an object of class \"meta3LX\".")
 
     # calculate coefficients    
     my.mx <- summary(object$mx.fit)
@@ -1109,13 +1122,13 @@ summary.meta3X <- function(object, allX=FALSE, robust=FALSE, ...) {
                 df=my.mx$degreesOfFreedom, Minus2LL=my.mx$Minus2LogLikelihood,
                 coefficients=coefficients, Mx.status1=object$mx.fit@output$status[[1]],
                 robust=robust)
-    class(out) <- "summary.meta3X"
+    class(out) <- "summary.meta3LX"
     out
 }
 
-print.summary.meta3X <- function(x, ...) {
-    if (!is.element("summary.meta3X", class(x)))
-    stop("\"x\" must be an object of class \"summary.meta3X\".")
+print.summary.meta3LX <- function(x, ...) {
+    if (!is.element("summary.meta3LX", class(x)))
+    stop("\"x\" must be an object of class \"summary.meta3LX\".")
 
     ## cat("Call:\n")
     ## cat(deparse(x$call))
@@ -1147,9 +1160,9 @@ print.summary.meta3X <- function(x, ...) {
     if (!(x$Mx.status1 %in% c(0,1))) warning("OpenMx status1 is neither 0 or 1. You are advised to 'rerun' it again.\n")
 }
 
-print.meta3X <- function(x, ...) {
-    if (!is.element("meta3X", class(x)))
-      stop("\"x\" must be an object of class \"meta3X\".")
+print.meta3LX <- function(x, ...) {
+    if (!is.element("meta3LX", class(x)))
+      stop("\"x\" must be an object of class \"meta3LX\".")
     ## cat("Call:\n")
     ## cat(deparse(x$call))
     cat("\nCall:\n", paste(deparse(x$call), sep = "\n", collapse = "\n"), 
@@ -1158,10 +1171,10 @@ print.meta3X <- function(x, ...) {
     print(summary.default(x), ...)
 }
 
-vcov.meta3X <- function(object, select=c("all", "fixed", "random", "allX"),
+vcov.meta3LX <- function(object, select=c("all", "fixed", "random", "allX"),
                         robust=FALSE, ...) {
-    if (!is.element("meta3X", class(object)))
-    stop("\"object\" must be an object of class \"meta3X\".")
+    if (!is.element("meta3LX", class(object)))
+    stop("\"object\" must be an object of class \"meta3LX\".")
 
     # labels of the parameters    
     ## my.name <- summary(object$mx.fit)$parameters$name
@@ -1184,9 +1197,9 @@ vcov.meta3X <- function(object, select=c("all", "fixed", "random", "allX"),
     out
 }
 
-coef.meta3X <- function(object, select=c("all", "fixed", "random", "allX"), ...) {
-  if (!is.element("meta3X", class(object)))
-    stop("\"object\" must be an object of class \"meta3X\".")
+coef.meta3LX <- function(object, select=c("all", "fixed", "random", "allX"), ...) {
+  if (!is.element("meta3LX", class(object)))
+    stop("\"object\" must be an object of class \"meta3LX\".")
 
   my.para <- omxGetParameters(object$mx.fit)
   select <- match.arg(select)
@@ -1198,7 +1211,7 @@ coef.meta3X <- function(object, select=c("all", "fixed", "random", "allX"), ...)
   my.para
 }
 
-anova.meta3X <- function(object, ..., all=FALSE) {
+anova.meta3LX <- function(object, ..., all=FALSE) {
   base <- lapply(list(object), function(x) x$mx.fit)
   comparison <- lapply(list(...), function(x) x$mx.fit)
   mxCompare(base=base, comparison=comparison, all=all)
